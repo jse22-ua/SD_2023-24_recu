@@ -1,0 +1,56 @@
+{
+  "drones": [
+    {
+      "ID": 1,
+      "ALIAS": "pedro",
+      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6InBlZHJvIiwiZXhwIjoxNzE4NzE3ODA3OTczfQ.zPnabM-XrMh8sGvWZqVykXcBIQtRMM684SmdRrJ-y4k",
+      "posicion_actual": [
+        2,
+        3
+      ],
+      "posicion_destino": [
+        9,
+        10
+      ]
+    },
+    {
+      "ID": 2,
+      "ALIAS": "pp",
+      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6InBwIiwiZXhwIjoxNzE4NzE3ODE1ODgzfQ.siV-sMlVVY3nFWgpEZ_K2cdvIQprEN55FYuLYlmC-z8",
+      "posicion_actual": [
+        1,
+        1
+      ],
+      "posicion_destino": [
+        12,
+        9
+      ]
+    },
+    {
+      "ID": 3,
+      "ALIAS": "al",
+      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6ImFsIiwiZXhwIjoxNzE4NzE3ODMwMzIxfQ.fuXUkeFQMdsfoe7Kpw36lQofmcYEo10Wrd7gEVOhnnw",
+      "posicion_actual": [
+        1,
+        1
+      ],
+      "posicion_destino": [
+        10,
+        9
+      ]
+    },
+    {
+      "ID": 4,
+      "ALIAS": "luis",
+      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Imx1aXMiLCJleHAiOjE3MTg3MTc4NDA5OTF9.kFOlvD7v53cz86FrMYbi_G6fek6p-ILgsi79H7UolwA",
+      "posicion_actual": [
+        20,
+        2
+      ],
+      "posicion_destino": [
+        13,
+        9
+      ]
+    }
+  ]
+}
