@@ -17,6 +17,7 @@ console.log(Broker_HOST);
 let droneToken = '';
 let ID = -1;
 const lado = 20;
+const puertoApi = 8000
 
 var posicion_actual = []
 var posicion_destino = []
@@ -47,7 +48,12 @@ function mainMenu() {
   rl.question('Elige una opción:\n1. Registro\n2. Unirse al espectaculo\n3. Salir\n4. Desactivar/Activar mapa\nOpcion:\n', (action) => {
     switch (action) {
       case '1':
-        connectToRegistry();
+        if(AD_Registry_PORT == puertoApi){
+          registryAPI();
+        } 
+        else{
+          connectToRegistry();
+        }
         break;
       case '2':
         joinShow();
@@ -88,10 +94,113 @@ inicio();
 
 
 //----------------------------------------------------------------------------
-//                            Registro del dron
+//                            Registro del dron API
+
+const URL_BASE = `http://localhost:${puertoApi}/`;
+
+async function registerDrone(){
+  try{
+    rl.question('ID: ', async (id) => {
+      rl.question('Alias: ', async (alias) => {
+        const drone = { ID: id, ALIAS: alias };
+        const resp = await fetch(URL_BASE + 'register',{
+          method:"POST",
+          headers:{
+            "Content-Type":"application/json"
+          },
+          body:JSON.stringify(drone)
+        });
+        resultado = await resp.json();
+          if(resp.status == 200){
+            ID = id;
+            droneToken = resultado.drone.TOKEN;
+            console.log(color.green(resultado.success));
+          }
+          if(resultado.error){
+            console.log(color.red(`Error ${resp.status}: ${resultado.error}`));
+          }
+          mainMenu();
+      });
+    });
+  }catch(e){
+    console.error('Error al registrarse', e)
+  }
+}
+
+async function deleteDrone(){
+  try{
+    rl.question('ID: ', async (droneID) => {
+      const resp = await fetch(URL_BASE + droneID,{
+        method:"DELETE"
+      });
+      resultado = await resp.json();
+      if(resp.status == 200){
+        console.log(color.green(resultado.success));
+      }
+      if(resultado.error){
+        console.log(color.red(`Error ${resp.status}: ${resultado.error}`));
+      }
+      mainMenu();
+    });
+  }catch(e){
+    console.error('Error al dar de baja', e)
+  }
+}
+
+async function updateDrone(){
+  try{
+    rl.question('ID: ', (droneID) => {
+          rl.question('Nuevo ID: ', (newID) => {
+            rl.question('Nuevo Alias: ', async (newAlias) => {
+              const updateData = { ID:newID, ALIAS:newAlias };
+              const resp = await axios.put(URL_BASE + droneID, updateData);
+              resultado = await resp.json();
+              if(resp.status == 200){
+                console.log(color.green(resultado.success));
+              }
+              if(resultado.error){
+                console.log(color.red(`Error ${resp.status}: ${resultado.error}`));
+              }
+              mainMenu();
+            });
+          });
+        });
+  }catch(e){
+    console.error('Error al actualizarse', e)
+  }
+}
+
+function registryAPI() {
+  console.log("Conexion por api")
+  rl.question('Elige una opción:\n1. Registrar dron\n2. Dar de baja dron\n3. Actualizar dron\n4. Volver al menú principal:\n', (action) => {
+    switch (action) {
+      case '1':
+        registerDrone();
+        break;
+      case '2':
+        deleteDrone();
+        break;
+      case '3':
+        updateDrone();
+        break;
+      case '4':
+        mainMenu();
+        break;
+      default:
+        console.log('Acción no válida. Intenta de nuevo.');
+        registryAPI();
+    }
+  });
+}
+
+//
+//----------------------------------------------------------------------------
+
+//----------------------------------------------------------------------------
+//                            Registro del dron sockets
 
   ////////////////////////////////////////////////////////////////////////////
-  //           Opciones
+  //           Opciones socket
 function options(socket) {
   rl.question('Elige una opción:\n1. Registrar dron\n2. Dar de baja dron\n3. Actualizar dron\n4. Volver al menú principal:\n', (action) => {
     switch (action) {
@@ -144,7 +253,7 @@ function options(socket) {
   /////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////
-  // Conexion con el servidor Registry y Lectura de datos
+  // Conexion con el servidor Registry y Lectura de datos (Socket)
 function connectToRegistry() {
   const socket = io(`http://${AD_Registry_HOST}:${AD_Registry_PORT}`);
 

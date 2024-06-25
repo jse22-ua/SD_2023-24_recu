@@ -8,8 +8,9 @@ const express = require("express");
 const app = express();
 app.use(express.json());
 
+const puertoApi = 8000
 
-const secret = 'claveSecreta';
+const secret = 'claveSecretaParaToken';
 
 if (process.argv.length !== 3) {
   console.log("Uso: node AD_Registry.js <PUERTO>");
@@ -23,20 +24,67 @@ if (process.argv.length !== 3) {
 app.post("/register",function(req,res){
   const drone = req.body;
   registerDrone(drone, (response)=>{
-    res.json(response);
+    if(response.error){
+      if(response.error === 'Ya existe un dron con el id: ' + drone.ID){
+        res.status(400)
+        console.log(response);
+        res.send(response)
+      }
+      else{
+        res.status(500)
+        console.log(response)
+        res.send(response)
+      }
+    }
+    else{
+      res.status(200);
+      console.log(response);
+      res.send(response);
+    }
   })
 })
 
-app.put("/update", function(req,res){
-
+app.put("/:id", function(req,res){
+  const id = parseInt(req.params.id)
+  const drone = req.body;
+  verificarUpdate(id, drone.ID,drone.ALIAS,(response)=>{
+    if(response.error){
+      if(response.error === 'Drone not found'){
+        res.status(404);
+        res.send(response)
+      }
+      else{
+        res.status(500);
+        res.send(response)
+      }
+    }else{
+      res.status(200);
+      res.send(response);
+    }
+  });
 })
 
-app.delete("/delete",function(req,res){
-
+app.delete("/:id",function(req,res){
+  var id = parseInt(req.params.id)
+  deregisterDrone(id,(response)=>{
+    if(response.error){
+      if(response.error === 'Drone not found'){
+        res.status(404)
+        res.send(response)
+      }
+      else{
+        res.status(500)
+        res.send(response);
+      }
+    }else{
+      res.status(200)
+      res.send(response);
+    }
+  })
 })
 
-app.listen(8000,()=>{
-  console.log("Servidor escuchando en el puerto 8000");
+app.listen(puertoApi,()=>{
+  console.log("Servidor api escuchando en el puerto", puertoApi);
 })
 
 
@@ -91,7 +139,7 @@ io.on('connection', (socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log('Servidor escuchando en el puerto', PORT);
+  console.log('Servidor socket escuchando en el puerto', PORT);
 });
 
 function generateRandomToken(alias) {
@@ -221,7 +269,7 @@ function verificarUpdate(droneID,newID,newAlias,callback) {
                 console.error('Error al escribir en la BD:', err);
                 callback({ error: 'Error al actualizar la base de datos' });
             } else {
-              callback({ error: "Dron actualizado" });
+              callback({ sucess: "Dron actualizado" });
             }
         });
       } else {
