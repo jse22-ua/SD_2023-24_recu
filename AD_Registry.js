@@ -6,7 +6,23 @@ const jwt = require('jwt-simple');
 const moment = require('moment');
 const express = require("express");
 const app = express();
+const crypto = require('crypto');
 app.use(express.json());
+
+
+const {publicKey, privateKey} = crypto.generateKeyPairSync('rsa',{
+  modulusLength: 2048,
+  publicKeyEncoding:{
+    type: 'spki',
+    format: 'pem'
+  },
+  privateKeyEncoding: {
+    type: 'pkcs8',
+    format: 'pem'
+  }
+});
+
+
 
 const puertoApi = 8000
 
@@ -20,6 +36,30 @@ if (process.argv.length !== 3) {
 /////////////////////////////////////////////////////////
 //                    Api rest
 //
+
+app.get("/",(req,res)=>{
+  res.status(200);
+  res.send(publicKey);
+})
+
+app.get("/:id/token",(req,res)=>{
+  const id = parseInt(req.params.id)
+  getToken(id, (response)=>{
+    if(response.error){
+      if(response.error === 'Drone not found'){
+        res.status(404);
+        res.send(response)
+      }
+      else{
+        res.status(500);
+        res.send(response)
+      }
+    }else{
+      res.status(200);
+      res.send(response);
+    }
+  })
+})
 
 app.post("/register",function(req,res){
   const drone = req.body;
@@ -93,39 +133,105 @@ app.listen(puertoApi,()=>{
 //
 
 const PORT = process.argv[2];
+
 const server = http.createServer();
 const io = socketIO(server);
 
 io.on('connection', (socket) => {
   console.log('[Cliente conectado]');
+  socket.emit('publicKey',publicKey);
 
-  socket.on('register', (dataJSON) => {
-    const data = JSON.parse(dataJSON);
+  socket.on('register', (datos) => {
+    let client_publicKey = datos.clave
+    const descrypterDron = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, datos.datos)
+
+    const data = JSON.parse(descrypterDron.toString());
+
     registerDrone(data, (response) => {
-      socket.emit('responseRegister', JSON.stringify(response));
+      console.log(response)
+      const encryptedToken = crypto.publicEncrypt({
+        key: client_publicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      }, Buffer.from(JSON.stringify(response)));
+
+      //socket.emit('responseRegister', JSON.stringify(response));
+      socket.emit('responseRegister', encryptedToken);
+    });
+  });
+
+  socket.on('getToken', (datos) => {
+    let client_publicKey = datos.clave
+    const descrypterDron = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, datos.datos)
+
+    const data = JSON.parse(descrypterDron.toString()).ID;
+    console.log(data)
+    getToken(data, (response) => {
+      console.log(response)
+      const encryptedToken = crypto.publicEncrypt({
+        key: client_publicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      }, Buffer.from(JSON.stringify(response)));
+
+      //socket.emit('responseRegister', JSON.stringify(response));
+      socket.emit('responseToken', encryptedToken);
     });
   });
 
   socket.on('deregister', (droneID) => {
-    const data = JSON.parse(droneID);
+    client_publicKey = datos.clave
+    const descrypterDron = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, droneID.datos)
+    const data = JSON.parse(descrypterDron.toString());
     const droneId = data.droneID;
     deregisterDrone(droneId, (response) => {
-      socket.emit('responseDeregister', JSON.stringify(response));
+      const encryptedRes = crypto.publicEncrypt({
+        key: client_publicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      }, Buffer.from(JSON.stringify(response)));
+      //socket.emit('responseDeregister', JSON.stringify(response));
+      socket.emit('responseDeregister', encryptedRes);
     });
   });
 
   socket.on('update', (droneID) => {
-    const data = JSON.parse(droneID);
+    const descrypterDron = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, droneID)
+    const data = JSON.parse(descrypterDron.toString());
     const droneId = data.droneID;
     updateDrone(droneId, (response) => {
-      socket.emit('responseUpdate', JSON.stringify(response));
+      const encryptedRes = crypto.publicEncrypt({
+        key: client_publicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      }, Buffer.from(JSON.stringify(response)));
+      //socket.emit('responseUpdate', JSON.stringify(response));
+      socket.emit('responseUpdate', encryptedRes);
     });
   });
 
   socket.on('verificarUpdate', (dataJSON) => { 
-    const { droneID, newID, newAlias } = JSON.parse(dataJSON);
+    const descrypterDron = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, dataJSON)
+    const { droneID, newID, newAlias } = JSON.parse(descrypterDron.toString());
+
     verificarUpdate(droneID, newID, newAlias, (response) => {
-      socket.emit('responseVerify', JSON.stringify(response));
+      const encryptedRes = crypto.publicEncrypt({
+        key: client_publicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      }, Buffer.from(JSON.stringify(response)));
+      //socket.emit('responseVerify', JSON.stringify(response));
+      socket.emit('responseVerify', encryptedRes);
     });
   });
 
@@ -150,9 +256,10 @@ function generateRandomToken(alias) {
   const TOKEN = jwt.encode(payload, secret);
   return TOKEN;
 }
-
+///////////////////////////////////////////////////////////////////
 //acciones. Registro, baja y actualización de drones
 
+//dar de alta
 function registerDrone(drone, callback) {
   const dbFilePath = path.join(__dirname, 'drones_DB.json');
   fs.readFile('drones_DB.json', 'utf-8', (err, data) => {
@@ -195,6 +302,7 @@ function registerDrone(drone, callback) {
   });
 }
 
+//dar de baja
 function deregisterDrone(droneID, callback) {
   const dbFilePath = path.join(__dirname, 'drones_DB.json');
   fs.readFile(dbFilePath, 'utf-8', (err, data) => {
@@ -229,6 +337,36 @@ function deregisterDrone(droneID, callback) {
   });
 }
 
+//dar nuevo token
+function getToken(droneID,callback) {
+  const dbFilePath = path.join(__dirname, 'drones_DB.json');
+  fs.readFile(dbFilePath, 'utf-8', (err, data) => {
+    try {
+      const database = JSON.parse(data);
+      const droneIndex = database.drones.findIndex(d => d.ID == droneID); 
+
+      if (droneIndex !== -1) { 
+        const token = generateRandomToken('nuevo'+droneID*20);
+        database.drones[droneIndex].TOKEN = token; 
+        fs.writeFile(dbFilePath, JSON.stringify(database, null, 2), 'utf-8', (err) => {
+            if (err) {
+                console.error('Error al escribir en la BD:', err);
+                callback({ error: 'Error al actualizar la base de datos' });
+            } else {
+              callback({ sucess: "Dron actualizado", token:token});
+            }
+        });
+      } else {
+        callback({ error: 'Dron no encontrado con el ID proporcionado.' });
+      }
+    } catch (error) {
+      console.error('Error de análisis de la BD:', error);
+      callback({ error: 'Error al analizar la base de datos' });
+    }
+  });
+}
+
+// actualizar
 function updateDrone(droneID,callback) {
   const dbFilePath = path.join(__dirname, 'drones_DB.json');
   fs.readFile(dbFilePath, 'utf-8', (err, data) => {

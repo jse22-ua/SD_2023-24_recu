@@ -4,6 +4,10 @@ const kafka = require('kafka-node');
 const readline = require('readline');
 const path = require('path');
 const color = require('colors');
+const crypto = require('crypto');
+
+
+
 
 const AD_Engine_HOST = process.argv[2];
 const AD_Engine_PORT = parseInt(process.argv[3], 10);
@@ -12,10 +16,8 @@ const Broker_PORT = parseInt(process.argv[5], 10);
 const AD_Registry_HOST = process.argv[6];
 const AD_Registry_PORT = parseInt(process.argv[7]);
 
-console.log(Broker_HOST);
-
 let droneToken = '';
-let ID = -1;
+let ID = 2;
 const lado = 20;
 const puertoApi = 8000
 
@@ -29,6 +31,19 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
+const {publicKey, privateKey} = crypto.generateKeyPairSync('rsa',{
+  modulusLength: 2048,
+  publicKeyEncoding:{
+    type: 'spki',
+    format: 'pem'
+  },
+  privateKeyEncoding: {
+    type: 'pkcs8',
+    format: 'pem'
+  }
+});
+
+clavePublica = ''
 
 //----------------------------------------------------------------------------
 //            Comprobacion inicial
@@ -96,7 +111,58 @@ inicio();
 //----------------------------------------------------------------------------
 //                            Registro del dron API
 
-const URL_BASE = `http://localhost:${puertoApi}/`;
+
+
+const URL_BASE = `http://${AD_Registry_HOST}:${puertoApi}/`;
+
+function registryAPI() {
+  console.log("Conexion por api")
+  rl.question('Elige una opción:\n1. Registrar dron\n2. Dar de baja dron\n3. Actualizar dron\n4. Volver al menú principal\n5. Solicitar nuevo token:\n', (action) => {
+    switch (action) {
+      case '1':
+        registerDrone();
+        break;
+      case '2':
+        deleteDrone();
+        break;
+      case '3':
+        updateDrone();
+        break;
+      case '4':
+        mainMenu();
+        break;
+      case '5':
+        solicitarNuevoToken();
+        break;
+      default:
+        console.log('Acción no válida. Intenta de nuevo.');
+        registryAPI();
+    }
+  });
+}
+
+async function solicitarNuevoToken(){
+  if(ID !=-1){
+    try{
+          const resp = await fetch(URL_BASE + ID + '/token');
+          resultado = await resp.json();
+            if(resp.status == 200){
+              droneToken = resultado.token;
+              console.log(color.green(resultado.sucess));
+            }
+            if(resultado.error){
+              console.log(color.red(`Error ${resp.status}: ${resultado.error}`));
+            }
+            mainMenu();
+
+    }catch(e){
+      console.error('Error al obtener un token', e)
+    }
+  }else{
+    console.log('No estas registrado')
+    mainMenu()
+  }
+}
 
 async function registerDrone(){
   try{
@@ -106,7 +172,7 @@ async function registerDrone(){
         const resp = await fetch(URL_BASE + 'register',{
           method:"POST",
           headers:{
-            "Content-Type":"application/json"
+            "Content-Type":"application/json",
           },
           body:JSON.stringify(drone)
         });
@@ -153,8 +219,14 @@ async function updateDrone(){
           rl.question('Nuevo ID: ', (newID) => {
             rl.question('Nuevo Alias: ', async (newAlias) => {
               const updateData = { ID:newID, ALIAS:newAlias };
-              const resp = await axios.put(URL_BASE + droneID, updateData);
-              resultado = await resp.json();
+              const resp = await fetch(URL_BASE + droneID,{
+                method:"PUT",
+                headers:{
+                  "Content-Type":"application/json",
+                  
+                },
+                body:JSON.stringify(updateData)
+              });
               if(resp.status == 200){
                 console.log(color.green(resultado.success));
               }
@@ -170,28 +242,6 @@ async function updateDrone(){
   }
 }
 
-function registryAPI() {
-  console.log("Conexion por api")
-  rl.question('Elige una opción:\n1. Registrar dron\n2. Dar de baja dron\n3. Actualizar dron\n4. Volver al menú principal:\n', (action) => {
-    switch (action) {
-      case '1':
-        registerDrone();
-        break;
-      case '2':
-        deleteDrone();
-        break;
-      case '3':
-        updateDrone();
-        break;
-      case '4':
-        mainMenu();
-        break;
-      default:
-        console.log('Acción no válida. Intenta de nuevo.');
-        registryAPI();
-    }
-  });
-}
 
 //
 //----------------------------------------------------------------------------
@@ -201,47 +251,90 @@ function registryAPI() {
 
   ////////////////////////////////////////////////////////////////////////////
   //           Opciones socket
+
+
 function options(socket) {
-  rl.question('Elige una opción:\n1. Registrar dron\n2. Dar de baja dron\n3. Actualizar dron\n4. Volver al menú principal:\n', (action) => {
+  rl.question('Elige una opción:\n1. Registrar dron\n2. Dar de baja dron\n3. Actualizar dron\n4. Volver al menú principal\n5.Solicitar nuevo token:\n', (action) => {
     switch (action) {
       case '1':
         rl.question('ID: ', (id) => {
           rl.question('Alias: ', (alias) => {
+
             const drone = { ID: id, ALIAS: alias };
-            socket.emit('register', JSON.stringify(drone));
+            const encryptedDron = crypto.publicEncrypt({
+              key: clavePublica,
+              padding: crypto.constants.RSA_PKCS1_PADDING
+            }, Buffer.from(JSON.stringify(drone)));
+
+            //socket.emit('register', JSON.stringify(drone));
+            socket.emit('register',{clave:publicKey, datos:encryptedDron});
           });
         });
         break;
       case '2':
         rl.question('ID: ', (droneID) => {
           const deregisterData = { droneID };
-          socket.emit('deregister', JSON.stringify(deregisterData));
+          const encryptedDron = crypto.publicEncrypt({
+            key: clavePublica,
+            padding: crypto.constants.RSA_PKCS1_PADDING
+          }, Buffer.from(JSON.stringify(deregisterData)));
+          //socket.emit('deregister', JSON.stringify(deregisterData));
+          socket.emit('deregister', {clave:publicKey, datos:encryptedDron});
         });
         break;
       case '3':
         rl.question('ID: ', (droneID) => {
           const updateData = { action: 'update', droneID };
-          socket.emit('update', JSON.stringify(updateData));
+          const encryptedDron = crypto.publicEncrypt({
+            key: clavePublica,
+            padding: crypto.constants.RSA_PKCS1_PADDING
+          }, Buffer.from(JSON.stringify(updateData)));
+          //socket.emit('update', JSON.stringify(updateData));
+          socket.emit('update', {clave:publicKey, datos:encryptedDron});
   
           socket.on('responseUpdate', (data) => {
-            const response = JSON.parse(data);
+            const descrypterResp = crypto.privateDecrypt({
+              key:privateKey,
+              padding: crypto.constants.RSA_PKCS1_PADDING
+            }, data)
+            const response = JSON.parse(descrypterResp.toString());
             if (response.success) {
               rl.question('Nuevo ID: ', (newID) => {
                 rl.question('Nuevo Alias: ', (newAlias) => {
                   const updateData = { droneID, newID, newAlias };
-                  socket.emit('verificarUpdate', JSON.stringify(updateData));
+                  const encryptedUP = crypto.publicEncrypt({
+                    key: clavePublica,
+                    padding: crypto.constants.RSA_PKCS1_PADDING
+                  }, Buffer.from(JSON.stringify(updateData)));
+                  //socket.emit('verificarUpdate', JSON.stringify(updateData));
+                  socket.emit('verificarUpdate', {clave:publicKey, datos:encryptedUP});
                   console.log('Dron actualizado');
                 });
               });
             } else if (response.error) {
               console.log('Error en la actualización:', response.error);
-              setTimeout(mainMenu, 1000);
+              mainMenu();
             }
           });
         });
         break;
       case '4':
         mainMenu();
+        break;
+      case '5':
+        if(ID != -1){
+          const idDron = { ID };
+          const encryptedDron = crypto.publicEncrypt({
+            key: clavePublica,
+            padding: crypto.constants.RSA_PKCS1_PADDING
+          }, Buffer.from(JSON.stringify(idDron)));
+          //socket.emit('deregister', JSON.stringify(deregisterData));
+          socket.emit('getToken',{clave:publicKey, datos:encryptedDron});
+        }
+        else{
+          console.log("No estas registrado")
+          mainMenu();
+        }
         break;
       default:
         console.log('Acción no válida. Intenta de nuevo.');
@@ -259,8 +352,12 @@ function connectToRegistry() {
 
   socket.on('connect', () => {
     console.log('Conectado al servidor de AD_Registry');
-    options(socket);
   });
+
+  socket.on('publicKey',(serverpublicKey)=>{
+    clavePublica = serverpublicKey
+    options(socket);
+  })
 
   socket.on('disconnect', () => {
     console.log('Desconectado del Registro')
@@ -283,7 +380,11 @@ function connectToRegistry() {
 
 function handler(socket){
   socket.on('responseRegister', (data) => {
-    const response = JSON.parse(data.toString());
+    const descrypterResp = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, data)
+    const response = JSON.parse(descrypterResp.toString());
     if (response.success) {
       ID = response.drone.ID
       droneToken = response.drone.TOKEN;
@@ -292,11 +393,31 @@ function handler(socket){
       console.log('Respuesta del servidor:', response);
     }
     socket.disconnect();
-    setTimeout(mainMenu,1000);
+    mainMenu();
+  });
+
+  socket.on('responseToken', (data) => {
+    const descrypterResp = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, data)
+    const response = JSON.parse(descrypterResp.toString());
+    if (response.success) {
+      droneToken = response.drone.TOKEN;
+      console.log('Dron registrado. TOKEN: ' + droneToken);
+    } else {
+      console.log('Respuesta del servidor:', response);
+    }
+    socket.disconnect();
+    mainMenu();
   });
 
   socket.on('responseDeregister', (data) => {
-    const response = JSON.parse(data.toString());
+      const descrypterResp = crypto.privateDecrypt({
+        key:privateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      }, data)
+    const response = JSON.parse(descrypterResp.toString());
     if (response.success) {
       console.log('Dron dado de baja');
       droneToken = response.drone.TOKEN;
@@ -304,11 +425,32 @@ function handler(socket){
       console.log('Respuesta del servidor:', response);
     }
     socket.disconnect();
-    setTimeout(mainMenu,1000);
+    mainMenu();
   });
 
+  socket.on('responseToken', (data) => {
+    const descrypterResp = crypto.privateDecrypt({
+      key:privateKey,
+      padding: crypto.constants.RSA_PKCS1_PADDING
+    }, data)
+  const response = JSON.parse(descrypterResp.toString());
+  if (response.success) {
+    console.log('Nuevo token');
+    droneToken = response.token;
+    console.log(droneToken)
+  } else {
+    console.log('Respuesta del servidor:', response);
+  }
+  socket.disconnect();
+  mainMenu();
+});
+
   socket.on('responseVerify', (data) => {
-    const response = JSON.parse(data.toString());
+    const descrypterResp = crypto.privateDecrypt({
+        key:privateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      }, data)
+    const response = JSON.parse(descrypterResp.toString());
     if (response.success) {
       console.log('Nuevo ID: ');
       console.log('Nuevo Alias: ');
@@ -317,7 +459,7 @@ function handler(socket){
       console.log('Respuesta del servidor:', response);
     }
     socket.disconnect();
-    setTimeout(mainMenu,1000);
+    mainMenu();
   });
 }
   //
@@ -344,6 +486,7 @@ function joinShow() {
   });
 
   engineSocket.on('right', (right) => {
+    console.log(right)
     if (right === "Incorrecto") {
       console.log("Dato incorrecto")
       engineSocket.disconnect()
@@ -358,6 +501,11 @@ function joinShow() {
       console.log("CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO CANCELADO")
       engineSocket.disconnect()
       process.exit();
+    }
+    else if(right === "TokenExpirado"){
+      console.log("Tu token ha expirado, vuelva a solicitarlo")
+      engineSocket.disconnect()
+      mainMenu();
     }
     else {
       console.log('Autentificación realizada correctamente')
