@@ -1,5 +1,54 @@
 {
-    "auditorias": [
-
-    ]
+  "auditorias": [
+    {
+      "fechaHora": "2024-06-30T20:02:54.486Z",
+      "ip": "::1",
+      "Donde": "autentificacion",
+      "evento": "El dron actentificado",
+      "parametros": [
+        1,
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6ImHDsWHDsWFuIiwiZXhwIjoxNzE5Nzc3NzkyMDkxfQ.1SZdJBTXFmK7JhUtYMafXBIbiqnhj2Zlkbw4-Hgt4IA"
+      ]
+    },
+    {
+      "fechaHora": "2024-06-30T20:12:44.287Z",
+      "ip": "::1",
+      "Donde": "autentificacion",
+      "evento": "El dron actentificado",
+      "parametros": [
+        1,
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6ImFsYW4iLCJleHAiOjE3MTk3NzgzNzk2NDd9.viH5GGtJlbmZTOZmnSzFfdme7DhPMgdYEW3C7ka_k6E"
+      ]
+    },
+    {
+      "fechaHora": "2024-06-30T20:12:48.423Z",
+      "ip": "::1",
+      "Donde": "autentificacion",
+      "evento": "Token Expirado",
+      "parametros": [
+        "2",
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6InBldGVyIiwiZXhwIjoxNzE5Nzc3MDM3MjI3fQ.O0Zr09fdbTiKZqtnOVEygoHM1a970GLAIYdtG5t4NwQ"
+      ]
+    },
+    {
+      "fechaHora": "2024-06-30T20:12:58.288Z",
+      "ip": "::1",
+      "Donde": "autentificacion",
+      "evento": "El dron actentificado",
+      "parametros": [
+        "2",
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Im51ZXZvNDAiLCJleHAiOjE3MTk3NzgzOTYzOTJ9.evBxFhqSeTJZY0-ckweu0Nbqx2DeGz5N01ZqrO1EBZU"
+      ]
+    },
+    {
+      "fechaHora": "2024-06-30T20:13:22.412Z",
+      "ip": "::1",
+      "Donde": "autentificacion",
+      "evento": "El dron actentificado",
+      "parametros": [
+        "2",
+        "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6InBlcmUiLCJleHAiOjE3MTk3Nzg0MjA3NDJ9.nTDh6pFxVEMXg58jHiYW-oGpvpgwc3luZ240pLBCFz8"
+      ]
+    }
+  ]
 }

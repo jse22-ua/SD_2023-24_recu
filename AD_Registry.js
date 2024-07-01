@@ -184,7 +184,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('deregister', (droneID) => {
-    client_publicKey = datos.clave
+    client_publicKey = droneID.clave
     const descrypterDron = crypto.privateDecrypt({
       key:privateKey,
       padding: crypto.constants.RSA_PKCS1_PADDING

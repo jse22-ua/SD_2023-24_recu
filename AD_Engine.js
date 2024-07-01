@@ -7,12 +7,28 @@ const kafka = require('kafka-node');
 const axios = require('axios');
 const jwt = require('jwt-simple');
 const moment = require('moment');
+const os = require('os');
 
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
-})
+});
+
+mi_ip = '127.0.0.1'
+
+const interfaces = os.networkInterfaces();
+for (let interfaceName in interfaces) {
+    for (let iface of interfaces[interfaceName]) {
+        // Skip over internal (i.e., 127.0.0.1) and non-IPv4 addresses
+        if (iface.family === 'IPv4' && !iface.internal) {
+            mi_ip = iface.address;
+        }
+    }
+}
+
+
+
 
 
 const tablero = {
@@ -26,6 +42,7 @@ var figura_A_Completar = {
 }
 
 const secret = 'claveSecretaParaToken';
+const claveSimetrica= jwt.encode(secret,Math.floor(Math.random()*process.argv[2]).toString())
 
 var estado = "normal"
 
@@ -57,23 +74,31 @@ socketAuto.on('connection', (client) => {
     if (clientIp.includes(',')) {
         clientIp = clientIp.split(',')[0];  // En caso de múltiples IPs, toma la primera
     }
+
+
+
     console.log('IP del cliente:', clientIp);
 
     if (tablero.drones.length == process.argv[3]) {
+        apuntarEvento(clientIp,"autentificacion","No caben mas drones",[process.argv[3]])
         client.emit('mensaje', 'No hay sitio para más drones');
         client.emit('right', 'lleno');
     }
     else if (estado != "normal") {
         console.log('El espectaculo ha finalizado')
+        apuntarEvento(clientIp,"autentificacion","No se puede empezar el espectaculo",[estado])
         client.emit('mensaje', 'El espectaculo ha finalizado');
         client.emit('right', 'no');
     }
     else {
-        client.emit('mensaje', 'Id: ');
-        client.on('id', (id) => {
+        client.emit('public_simetric_key',claveSimetrica);
+        client.on('id', (Esteid) => {
+            id = jwt.decode(Esteid,claveSimetrica);
+            console.log(id)
             if (id != -1) {
                 fs.readFile('drones_DB.json', 'utf8', (err, data) => {
                     if (err) {
+                        apuntarEvento(clientIp,"autentificacion","Eror al leer la base de datos",[id])
                         console.error('Error al leer drones_DB.json:', err)
                         return;
                     }
@@ -81,15 +106,14 @@ socketAuto.on('connection', (client) => {
                         const dronesData = JSON.parse(data);
                         const dron_to_seach = dronesData.drones.find(dron => dron.ID == id);
                         if (dron_to_seach) {
-                            client.emit('mensaje', 'Token: ');
-                            client.on('token', async (token) => {
+                            client.emit('sol_token','token');
+                            client.on('token', async (este_token) => {
+                                const token = jwt.decode(este_token,claveSimetrica)
                                 if (dron_to_seach.TOKEN === token) {
                                     const this_token = jwt.decode(token, secret);
-                                    console.log(this_token)
                                     const actual_time = moment().valueOf();
-                                    console.log(this_token.exp)
-                                    console.log(actual_time)
                                     if (actual_time < this_token.exp) {
+                                        apuntarEvento(clientIp,"autentificacion","El dron actentificado",[id,token])
                                         client.emit('right', 'Correcto')
                                         let aux = [1, 1];
                                         if ("posicion_actual" in dron_to_seach) {
@@ -106,21 +130,26 @@ socketAuto.on('connection', (client) => {
                                         }
                                     }
                                     else {
+                                        apuntarEvento(clientIp,"autentificacion","Token Expirado",[id,token])
                                         client.emit('right', 'TokenExpirado')
                                     }
                                 } else {
+                                    apuntarEvento(clientIp,"autentificacion","Token incorrecto",[id,token])
                                     client.emit('right', 'Incorrecto')
                                 }
                             })
                         } else {
+                            apuntarEvento(clientIp,"autentificacion","El dron no existe o no se encuentra en la base de datos",[id])
                             client.emit('right', 'Incorrecto')
                         }
                     } catch (error) {
+                        apuntarEvento(clientIp,"autentificacion","Error al leer la base de datos",[id])
                         console.error('Error al analizar el archivo JSON:', error);
                     }
 
                 })
             } else {
+                apuntarEvento(clientIp,"autentificacion","El dron no registrado",[id])
                 client.emit('right', 'Incorrecto')
             }
         })
@@ -210,7 +239,8 @@ async function enviarPosicionAUnDron(id, aux) {
 
 async function enviarNuevaPosicion(id, posicion) {
     const mensaje = JSON.stringify({ id, posicion });
-    producer.send([{ topic: 'newPosition', messages: mensaje }], function (err, data) {
+    const encrypted =  jwt.encode(mensaje, claveSimetrica);
+    producer.send([{ topic: 'newPosition', messages: encrypted }], function (err, data) {
         if (err) console.error('Error al enviar nueva posición:', err);
         else console.log('Nueva posición enviada:', data);
     });
@@ -306,8 +336,9 @@ function posicionConsecutiva(pos, pos_actual) {
 
 const movimiento = () => {
     consumer.on('message', function (message) {
-        const position = JSON.parse(message.value);
-        const dron_to_move = tablero.drones.find(dron => dron.id === position.id);
+        const decrypted = jwt.decode(message.value, claveSimetrica);
+        const position = JSON.parse(decrypted);
+        const dron_to_move = tablero.drones.find(dron => dron.id === decrypted.id);
         if (dron_to_move) {
             if (posicionConsecutiva(position.posicion, dron_to_move.posicion_actual)) {
                 dron_to_move.posicion_actual = position.posicion;
@@ -327,7 +358,8 @@ const movimiento = () => {
 //                  Enviar tablero 
 async function enviarEstadoTablero(thistablero) {
     const mensaje = JSON.stringify(thistablero);
-    producer.send([{ topic: 'mapa', messages: mensaje }], function (err, data) {
+    const encrypted = jwt.encode(mensaje, claveSimetrica);
+    producer.send([{ topic: 'mapa', messages: encrypted }], function (err, data) {
         if (err) console.error('Error al enviar estado del tablero:', err);
         else console.log('Estado del tablero enviado:', data);
     });
@@ -338,6 +370,7 @@ async function enviarTableroCadaSegundo() {
         return;
     }
     if (estado === "CONDICIONES CLIMATICAS ADVERSAS. ESPECTACULO FINALIZADO" || estado === "STOP") {
+        apuntarEvento(mi_ip,"Deteccion del programa por",estado,[estado])
         await enviarEstadoTablero(estado);
         clearInterval(idInterval1)
         clearInterval(idInterval2)
@@ -374,13 +407,15 @@ producer.on('ready', function () {
 
 producer.on('error', function (error) {
     console.error('Error en el productor de Kafka');
-    console.log('No se pudo conectar a kafka porfavor expere')
+    apuntarEvento(mi_ip,"kafka","error en el productor de kafka",[]);
+    console.log('No se pudo enviar datos a kafka porfavor espere');
 });
 
 consumer.on('message', function (message) {
     //console.log('Mensaje recibido:', message);
     try {
-        const datosDron = JSON.parse(message.value);
+        const decrypted = jwt.decode(message.value, claveSimetrica);
+        const datosDron = JSON.parse(decrypted);
         const dron = tablero.drones.find(d => d.id === datosDron.id);
         if (dron) {
             dron.posicion_actual = datosDron.posicion;
@@ -391,7 +426,10 @@ consumer.on('message', function (message) {
 });
 
 consumer.on('error', function (error) {
-    console.error('Error en el consumidor de Kafka:', error);
+    apuntarEvento(mi_ip,"kafka","error en el productor de kafka",[]);
+    console.error('Error en el consumidor de Kafka');
+    console.log('No se pudo recibir datos a kafka porfavor espere');
+
 });
 
 
@@ -475,7 +513,7 @@ idInterval = setInterval(() => { continuarEspectaculo() }, 4000);
 //----------------------------------------------------------------------------
 //                                 Auditoria
 
-function apuntarEvento(ip='', evento, parametros=[]){
+async function apuntarEvento(ip='',operacion, evento, parametros=[]){
     fs.readFile('auditorias.json', 'utf-8',(err,datos)=>{
         if (err) {
             console.error('Error al leer el archivo:', err);
@@ -485,7 +523,7 @@ function apuntarEvento(ip='', evento, parametros=[]){
         let auditoriasJSON;
         try {
             // Parsear el contenido del archivo JSON
-            auditoriasJSON = JSON.parse(data);
+            auditoriasJSON = JSON.parse(datos);
         } catch (err) {
             console.error('Error al parsear el JSON:', err);
             return;
@@ -498,6 +536,7 @@ function apuntarEvento(ip='', evento, parametros=[]){
         let auditoria = {
             "fechaHora": fechaHoraActual,
             "ip": ip,
+            "Donde": operacion,
             "evento": evento,
             "parametros": parametros
         };
@@ -506,7 +545,7 @@ function apuntarEvento(ip='', evento, parametros=[]){
         auditoriasJSON.auditorias.push(auditoria);
 
         // Escribir el archivo JSON actualizado
-        fs.writeFile(path, JSON.stringify(auditoriasJSON, null, 2), (err) => {
+        fs.writeFile('auditorias.json', JSON.stringify(auditoriasJSON, null, 2), (err) => {
             if (err) {
                 console.error('Error al escribir el archivo:', err);
                 return;

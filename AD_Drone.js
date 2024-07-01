@@ -5,6 +5,7 @@ const readline = require('readline');
 const path = require('path');
 const color = require('colors');
 const crypto = require('crypto');
+const jwt = require('jwt-simple')
 
 
 
@@ -16,8 +17,8 @@ const Broker_PORT = parseInt(process.argv[5], 10);
 const AD_Registry_HOST = process.argv[6];
 const AD_Registry_PORT = parseInt(process.argv[7]);
 
-let droneToken = '';
-let ID = 2;
+let droneToken = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Im51ZXZvMjAiLCJleHAiOjE3MTk3NTQwMzg0NjV9.lmGgFyNVLVI7iTRdMDX3ijGFM0PruuGn-8b-V-DSK-4';
+let ID = 1;
 const lado = 20;
 const puertoApi = 8000
 
@@ -44,6 +45,7 @@ const {publicKey, privateKey} = crypto.generateKeyPairSync('rsa',{
 });
 
 clavePublica = ''
+clavePublicaEngine = ''
 
 //----------------------------------------------------------------------------
 //            Comprobacion inicial
@@ -478,12 +480,19 @@ function joinShow() {
 
   engineSocket.on('connect', () => {
     console.log('Conectado al espectáculo.');
-    engineSocket.emit('id', ID)
-    console.log('ID: ' + ID)
-    engineSocket.emit('token', droneToken)
-    console.log('TOKEN: ' + droneToken)
 
   });
+
+  engineSocket.on('sol_token',(token)=>{
+    const encryptedToken = jwt.encode(droneToken, clavePublicaEngine);
+    engineSocket.emit('token',encryptedToken)
+  })
+
+  engineSocket.on('public_simetric_key',(clave_publica_simetrica)=>{
+    clavePublicaEngine = clave_publica_simetrica
+    const encryptedId = jwt.encode(ID, clavePublicaEngine);
+    engineSocket.emit('id', encryptedId)
+  })
 
   engineSocket.on('right', (right) => {
     console.log(right)
@@ -576,14 +585,15 @@ function Mover(mapa){
 }
 
 consumer.on('message', (message) => {
+  const decrypted = jwt.decode(message.value, clavePublicaEngine);
   if (message.topic === 'mapa') {
-    console.log('Mapa recibido:', message.value);
-    if (message.value[0] !== '{') {
-      console.log(message.value);
+    console.log('Mapa recibido:', decrypted);
+    if (decrypted[0] !== '{') {
+      console.log(decrypted);
       cleanUpAndExit();
     }
     else{
-      const mapa = JSON.parse(message.value);
+      const mapa = JSON.parse(decrypted);
       if (mostrarMapa === 's') {
         imprimirMapa(mapa);
       }
@@ -594,8 +604,8 @@ consumer.on('message', (message) => {
       }
     }
   } else if (message.topic === 'newPosition') {
-    console.log('Nueva posicion recibida:', message.value);
-    const posicion_des = JSON.parse(message.value);
+    console.log('Nueva posicion recibida:', decrypted);
+    const posicion_des = JSON.parse(decrypted);
     if (posicion_des.id == ID) {
         posicion_destino = posicion_des.posicion;
         posicion_actual = [1, 1];
@@ -615,8 +625,9 @@ consumer.on('message', (message) => {
   producer.on('ready', function() {
       console.log('Productor de Kafka conectado');
       const posicionInicial = [1, 1];
+      const encrypted = jwt.encode(JSON.stringify({ id: ID, posicion: posicionInicial }), clavePublicaEngine);
       const payloads = [
-        { topic: 'posiciones', messages: JSON.stringify({ id: ID, posicion: posicionInicial }) }
+        { topic: 'posiciones', messages:encrypted  }
       ];
       producer.send(payloads, function(err, data) {
           if (err) {
@@ -635,9 +646,11 @@ consumer.on('message', (message) => {
 
 
   function enviarPosicion(nuevaPos) {
+    const encrypted = jwt.encode(JSON.stringify({ id: ID, posicion: nuevaPos }), clavePublicaEngine);
     const payloads = [
-        { topic: 'posiciones', messages: JSON.stringify({ id: ID, posicion: nuevaPos }) }
+        { topic: 'posiciones', messages:encrypted  }
     ];
+
     producer.send(payloads, function(err, data) {
         if (err) {
             console.error('Error al enviar mensaje:', err);
@@ -789,109 +802,5 @@ function imprimirMapa(mapa) {
   console.log('\n');
 
 }
-
-//----------------------------------------------------------------------------
-
-//----------------------------------------------------------------------------
-//                              Codigo descartado
-
-// guardar el token en un archivo txt
-/*client.on('data', (data) => {
-  const response = JSON.parse(data.toString());
-  if (response.success) {
-      console.log('Registro exitoso, TOKEN: ' + response.drone.TOKEN);
-      // Guardar el token aquí
-      // saveToken(response.drone.TOKEN);
-      droneToken = response.drone.TOKEN;
-  } else {
-      console.log('Respuesta del servidor:', response);
-  }
-  options(); // Para volver al menú después de manejar la respuesta
-});
-
-function saveToken(token) {
-  const tokenPath = path.join(__dirname, 'drone_token.txt');
-  fs.writeFile(tokenPath, token, (err) => {
-      if (err) {
-          return console.log('Error al guardar el token:', err.message);
-      }
-      console.log('Token guardado en', tokenPath);
-  });
-}*/
-
-  //kafkajs
-  /*try {
-
-    /*await producer.connect();
-    console.log('Productor de Kafka conectado');
-    await consumer.connect();
-    console.log('Consumidor de Kafka conectado');
-
-    const runOtherConsumer = async () => {
-      await consumer.connect()
-      await consumer.subscribe({ topic: 'newPosition', fromBeginning: true})
-      await consumer.run({
-        eachMessage: async ({ topic, partition, message }) => {
-          posicion_des = JSON.parse(message.value)
-          separar = posicion_des.split(' ')
-          if (separar[0] == ID) {
-            posicion_desti = separar[1].split(',')
-            posicion_destino = [parseInt(posicion_desti[0]), parseInt(posicion_desti[1])]
-            posicion_actual = [1, 1]
-          }
-        }
-      })
-
-    }
-
-    const runProducer = async () => {
-      await producer.connect()
-      console.log('Productor de Kafka conectado');
-      const nueva_pos = calcularMejormovimiento();
-      await producer.send({
-        topic: 'posiciones',
-        messages: [
-          { value: JSON.stringify({ id: ID, posicion: nueva_pos }) }
-        ]
-      })
-      await producer.disconnect()
-    }
-
-    const runConsumer = async () => {
-      await consumer.connect()
-      console.log('Consumidor de Kafka conectado');
-      await consumer.subscribe({ topic: 'mapa' })
-      await consumer.run({
-        eachMessage: async ({ topic, partition, message }) => {
-          mapa = JSON.parse(message.value)
-          imprimirMapa(mapa);
-          const dron = mapa.drones.find((dron) => dron.id === id);
-          if (dron) {
-            if (!dron.arrived) {
-              runProducer().catch(console.error)
-            }
-          }
-
-        }
-      })
-    }
-
-    (async function () {
-      await runOtherConsumer().catch(console.error)
-      await runProducer().catch(console.error)
-      await runConsumer().catch(console.error)
-    })();
-
-    function cleanUpAndExit() {
-      socket.close();
-      process.exit();
-    }
-    process.on('SIGINT', cleanUpAndExit);
-    process.on('SIGTERM', cleanUpAndExit);
-
-  } catch (error) {
-    console.error(`[ejecutarKafka] Error: ${error.message}`, error);
-    process.exit(1);
-  }*/
 
 //----------------------------------------------------------------------------

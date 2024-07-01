@@ -1,34 +1,30 @@
 {
   "drones": [
     {
-      "ID": 11111,
-      "ALIAS": "1",
-      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6IjEiLCJleHAiOjE3MTk3NDU0NzM3MDN9.2KAuxVVvYKkKupJn3l3ZKZ1m2I78NyfCIOhVQDHKcjo"
+      "ID": 1,
+      "ALIAS": "alan",
+      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6ImFsYW4iLCJleHAiOjE3MTk3NzgzNzk2NDd9.viH5GGtJlbmZTOZmnSzFfdme7DhPMgdYEW3C7ka_k6E",
+      "posicion_actual": [
+        1,
+        1
+      ],
+      "posicion_destino": [
+        5,
+        4
+      ]
     },
     {
       "ID": 2,
-      "ALIAS": "esteban",
-      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Im51ZXZvNDAiLCJleHAiOjE3MTk3NDg3NDA1Mjh9.NhESWsfZe3F6yYVAoKyT-2HcOHxsfSMQIc0s-kCIMi4"
-    },
-    {
-      "ID": 3,
-      "ALIAS": "alan",
-      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Im51ZXZvNjAiLCJleHAiOjE3MTk3NDg4Mjk0NTN9.dI90Z1JpRNV3oIn1u7XpktVw8GNnFJHm9kAX9sgrL8w"
-    },
-    {
-      "ID": 6,
-      "ALIAS": "hola",
-      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Im51ZXZvMTIwIiwiZXhwIjoxNzE5NzUzNzkzNjI5fQ.z2AkGLF3SCf1WQN6FPsGcYJUEq34F5sqZv0ZGxfKbG4"
-    },
-    {
-      "ID": 1,
-      "ALIAS": "lalala",
-      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Im51ZXZvMjAiLCJleHAiOjE3MTk3NTQwMzg0NjV9.lmGgFyNVLVI7iTRdMDX3ijGFM0PruuGn-8b-V-DSK-4"
-    },
-    {
-      "ID": 12,
-      "ALIAS": "ffe",
-      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6Im51ZXZvMjQwIiwiZXhwIjoxNzE5NzU0MDYxNTM2fQ.-bJXve4ovWcx-Tp9ptqEDZ1H4KCVTwN76cJ0H97-Jgc"
+      "ALIAS": "pere",
+      "TOKEN": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJhbGlhcyI6InBlcmUiLCJleHAiOjE3MTk3Nzg0MjA3NDJ9.nTDh6pFxVEMXg58jHiYW-oGpvpgwc3luZ240pLBCFz8",
+      "posicion_actual": [
+        1,
+        3
+      ],
+      "posicion_destino": [
+        5,
+        4
+      ]
     }
   ]
 }

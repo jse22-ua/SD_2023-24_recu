@@ -9,6 +9,7 @@ mapa = []
 
 function leerMapa(){
     mapa = []
+    completado = true
     const figura = fs.readFileSync('drones_DB.json','utf-8');
     const drones = JSON.parse(figura).drones
     const posicion_a_id = {};
@@ -20,6 +21,8 @@ function leerMapa(){
                 posicion_a_id[key] = [dron.ID, 'v'];
             } else {
                 posicion_a_id[key] = [dron.ID, 'r'];
+                completado = false
+
             }
         }
     });
@@ -32,10 +35,12 @@ function leerMapa(){
             }
             else{
                 aux.push(' ')
+
             }
         }
         mapa.push(aux)
     }
+    return completado
 }
 
 
@@ -44,12 +49,23 @@ function leerMapa(){
 //                    Api rest
 //
 
+//obtener mapa 
 app.get("/",function(req,res){
-    leerMapa()
+    estado = ""
+    if(leerMapa()){
+        estado = "Figura completada"
+    }
     res.status(200)
-    res.send(mapa)
+    res.send({mapa:mapa, estado: estado})
 })
 
+//obtener auditoria
+app.get("/auditoria", function(req,res){
+    const auditoria = fs.readFileSync('auditorias.json','utf-8');
+    console.log(auditoria)
+    res.status(200)
+    res.send(auditoria)
+})
 
 app.listen(8001,()=>{
   console.log("Servidor api escuchando en el puerto", 8001);
